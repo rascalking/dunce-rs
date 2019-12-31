@@ -1,11 +1,12 @@
 use std::net::UdpSocket;
+use std::fmt;
 
 use byteorder::{ByteOrder, NetworkEndian};
 use rand::prelude::*;
 
 fn main() {
-    let mut packet = Packet::new();
-    println!("{}", packet.id());
+    let mut packet = Packet::new_query("www.icann.org");
+    println!("{}", packet);
 
     //let (amt, src) = socket.recv_from(&mut buf).unwrap();
     //let packet = parse_packet(buf, amt).unwrap();
@@ -32,11 +33,30 @@ struct Packet {
     buf: Option<Vec<u8>>,
 }
 
+impl fmt::Display for Packet {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f,
+               "(id: {}, qr: {}, aa: {}, tc: {}, rd: {}, ra: {}, opcode: {}, qdcount: {}, ancount: {}, nscount: {}, arcount: {})",
+               self.id(), self.is_query(), self.is_authoritative(),
+               self.is_truncated(), self.is_recursion_desired(),
+               self.is_recursion_available(), self.opcode(), self.qdcount(),
+               self.ancount(), self.nscount(), self.arcount())
+    }
+}
+
 impl Packet {
     fn new() -> Packet {
         let buf = Some(vec![0 as u8; 512]);
-        let mut packet = Packet { buf };
+        Packet { buf }
+    }
+
+    fn new_query(query: &str) -> Packet {
+        let mut packet = Packet::new();
         packet.set_id(rand::thread_rng().gen::<u16>());
+        packet.set_query(true);
+        packet.set_opcode(0);
+        packet.set_recursion_desired(true);
+        packet.set_qdcount(1);
         packet
     }
 
@@ -84,16 +104,18 @@ impl Packet {
     }
 
     fn is_query(&self) -> bool {
-        self.flags() & QR == QR
+        // it's a query when QR == 0
+        !(self.flags() & QR == QR)
     }
 
     fn set_query(&mut self, is_query: bool) {
         let mut flags = self.flags();
         if is_query {
-            flags |= QR;
+            // it's a query when QR == 0
+            flags &= !QR;
         }
         else {
-            flags &= !QR;
+            flags |= QR;
         }
         self.set_flags(flags);
     }
