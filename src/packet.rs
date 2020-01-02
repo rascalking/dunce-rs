@@ -45,6 +45,12 @@ impl Packet {
         packet
     }
 
+    pub fn parse(buf: Vec<u8>) -> Packet {
+        let buf = Some(buf);
+        let mut packet = Packet { buf };
+        packet
+    }
+
     pub fn buf(&self) -> &[u8] {
         self.buf.as_ref().unwrap()
     }
